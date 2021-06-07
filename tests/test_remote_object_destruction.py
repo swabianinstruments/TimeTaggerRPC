@@ -3,11 +3,7 @@ import typing
 
 from TimeTaggerRPC.client import createProxy
 
-
-if typing.TYPE_CHECKING:
-    import TimeTagger as TT
-else:
-    TT = createProxy()  #type: TT
+TT = createProxy()
 
 print('TT', TT._pyroUri)
 
@@ -15,7 +11,7 @@ print('TT', TT._pyroUri)
 print('Available Time Taggers',  TT.scanTimeTagger())
 
 # Create Time Tagger
-tagger = TT.createTimeTagger()  # type: TT.TimeTagger
+tagger = TT.createTimeTagger()
 tagger.setTestSignal(1, True)
 tagger.setTestSignal(2, True)
 
