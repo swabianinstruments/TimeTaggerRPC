@@ -4,17 +4,13 @@ import matplotlib.pyplot as plt
 
 from TimeTaggerRPC.client import createProxy
 
-
-if typing.TYPE_CHECKING:
-    import TimeTagger as TT
-else:
-    TT = createProxy()  #type: TT
+TT = createProxy()
 
 # Find Time Taggers available at the remote system
 print('Available Time Taggers',  TT.scanTimeTagger())
 
 # Create Time Tagger
-tagger = TT.createTimeTagger()  # type: TT.TimeTagger
+tagger = TT.createTimeTagger()
 tagger.setTestSignal(1, True)
 tagger.setTestSignal(2, True)
 
@@ -33,7 +29,6 @@ crate = TT.Countrate(tagger, [1,2])
 crate.clear()
 
 hist.startFor(int(10e12), clear=True)
-
 
 fig, ax = plt.subplots()
 h, = ax.plot([],[])
