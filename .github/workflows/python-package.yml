@@ -26,7 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install flake8 pytest Pyro5 numpy flit
+        python -m pip install flake8 pytest flit
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Lint with flake8
       run: |
@@ -37,3 +37,15 @@ jobs:
     #- name: Test with pytest
     #  run: |
     #    pytest
+    - name: Package with Flit
+      run: |
+        flit build --format wheel
+    - name: Upload package artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: package-${{ matrix.python-version }}
+          path: dist
+          retention-days: 5
+        # Use always() to always run this step to publish test results when there are test failures
+        if: ${{ always() }}
+        
