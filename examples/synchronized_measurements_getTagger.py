@@ -2,9 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from TimeTaggerRPC import client
 
-import TimeTagger as TT
 
-TimeTagger: TT = client.createProxy(host='localhost', port=23000)
+TimeTagger = client.createProxy(host='localhost', port=23000)
 
 print('Time Tagger software version (remote):', TimeTagger.getVersion())
 
