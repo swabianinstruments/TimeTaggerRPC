@@ -74,6 +74,6 @@ jobs:
       env:
         FLIT_USERNAME: __token__
         FLIT_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
-        FLIT_INDEX_URL: ${{ secrets.TEST_PYPI_INDEX_URL }}
+        FLIT_INDEX_URL: https://test.pypi.org/legacy/
       run: |
         flit publish --format wheel 
