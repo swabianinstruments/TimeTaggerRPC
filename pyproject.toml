@@ -1,0 +1,37 @@
+[build-system]
+requires = ["flit_core >=2,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.metadata]
+module = "TimeTaggerRPC"
+author = "Igor Shavrin"
+author-email = "igor@swabianinstruments.com"
+home-page = "http://pypi.python.org/pypi/TimeTaggerRPC/"
+description-file = "README.md"
+requires = [
+    "Pyro5",
+    "numpy"
+]
+requires-python = ">=3.6,<4"
+license = "BSD 3-Clause"
+classifiers=[
+    "License :: OSI Approved :: BSD License",
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+]
+
+[tool.flit.metadata.urls]
+Documentation = "https://www.swabianinstruments.com/static/documentation/TimeTagger/index.html"
+Hardware = "https://www.swabianinstruments.com/time-tagger/"
+
+[tool.flit.scripts]
+TimeTaggerRPC-server = "TimeTaggerRPC.server:main"
+
