@@ -6,7 +6,7 @@ build-backend = "flit_core.buildapi"
 module = "TimeTaggerRPC"
 author = "Igor Shavrin"
 author-email = "igor@swabianinstruments.com"
-home-page = "http://pypi.python.org/pypi/TimeTaggerRPC/"
+home-page = "https://github.com/igor-shavrin/TimeTaggerRPC"
 description-file = "README.md"
 requires = [
     "Pyro5",
