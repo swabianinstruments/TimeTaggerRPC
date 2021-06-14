@@ -10,7 +10,7 @@ class TTProxy(Pyro5.api.Proxy):
         super().__init__(*args, **kwargs)
 
         # Load enum definitions and construct enum classes
-        definitions = self.enum_definitions()  # 
+        definitions = self.enum_definitions()  #
         for name, (enum_type, args) in definitions.items():
             self.__dict__[name] = getattr(enum, enum_type)(name, args)
         self._pyroRelease()
@@ -32,6 +32,3 @@ def createProxy(host: str = 'localhost', port: int = 23000, _objectId: str = 'Ti
 
     uri = f"PYRO:{_objectId}@{host}:{port}"
     return TTProxy(uri)
-
-
-

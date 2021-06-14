@@ -1,5 +1,4 @@
 import time
-import typing
 
 from TimeTaggerRPC.client import createProxy
 
@@ -25,12 +24,12 @@ sm = TT.SynchronizedMeasurements(tagger)
 hist_list = list()
 for i in range(5):
     h = TT.Correlation(tagger, 1, DELAYED_CH, binwidth=10, n_bins=2000)
-    print(f'hist_{i}', h._pyroUri)    
+    print(f'hist_{i}', h._pyroUri)
     hist_list.append(h)
     sm.registerMeasurement(h)
 
 
-crate = TT.Countrate(tagger, [1,2])
+crate = TT.Countrate(tagger, [1, 2])
 print('crate', crate._pyroUri)
 crate.clear()
 

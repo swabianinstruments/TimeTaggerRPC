@@ -2,10 +2,10 @@
 This example demonstrates how to use Proxy objects in multiple Python threads.
 
 Pyro5 does not allow access to Proxy objects from multiple threads.
-However, one can transfer ownership of an existing Proxy object to another thread 
+However, one can transfer ownership of an existing Proxy object to another thread
 if required.
 
-For more information see: 
+For more information see:
     https://pyro5.readthedocs.io/en/latest/clientcode.html#proxy-sharing-between-threads
 
 """
@@ -34,7 +34,7 @@ tagger.setTestSignal(1, True)
 tagger.setTestSignal(2, True)
 
 # Create Countrate measurements and return their Pyro5 proxies
-crate1 = TT.Counter(tagger, [1], binwidth=int(1e12), n_values=2) 
+crate1 = TT.Counter(tagger, [1], binwidth=int(1e12), n_values=2)
 crate2 = TT.Counter(tagger, [2], binwidth=int(1e11), n_values=5)
 
 # Create threads
@@ -45,7 +45,7 @@ try:
     t1.start()
     t2.start()
     while t1.is_alive() or t2.is_alive():
-       time.sleep(0.1)
+        time.sleep(0.1)
 
 except KeyboardInterrupt:
     stop_evt.set()

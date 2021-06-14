@@ -1,4 +1,4 @@
-import typing
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -25,14 +25,14 @@ hist2 = TT.Correlation(tagger, 1, DELAYED_CH, binwidth=10, n_bins=2000)
 print('hist ', hist._pyroUri)
 print('hist2', hist2._pyroUri)
 
-crate = TT.Countrate(tagger, [1,2])
+crate = TT.Countrate(tagger, [1, 2])
 crate.clear()
 
 hist.startFor(int(10e12), clear=True)
 
 fig, ax = plt.subplots()
-h, = ax.plot([],[])
-h2, = ax.plot([],[])
+h, = ax.plot([], [])
+h2, = ax.plot([], [])
 # the time vector is fixed. No need to read it on every iteration
 x = hist.getIndex()
 x2 = hist2.getIndex()

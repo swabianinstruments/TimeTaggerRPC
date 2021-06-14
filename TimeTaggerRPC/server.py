@@ -9,9 +9,9 @@ from . import helper
 
 
 EXCLUDED_LIBRARY_MEMBERS = [
-    'TimeTaggerBase', 'IteratorBase', 'Iterator', 'FlimAbstract', 
-    'TimeTaggerVirtual', 'createTimeTaggerVirtual', 
-    'CustomMeasurement', 'CustomMeasurementBase', 
+    'TimeTaggerBase', 'IteratorBase', 'Iterator', 'FlimAbstract',
+    'TimeTaggerVirtual', 'createTimeTaggerVirtual',
+    'CustomMeasurement', 'CustomMeasurementBase',
     'TimeTagStream', 'FileReader', 'TimeTagStreamBuffer',
     'setLogger', 'setCustomBitFileName', 'hasTimeTaggerVirtualLicense',
     'setFrontend', 'setLanguageInfo', 'flashLicense',
@@ -33,13 +33,13 @@ def pyro_track_resource(resource):
 
 class TrackedResource:
     """Implements 'close' method that clears the underlying object.
-        This class is not exposed by the Pyro and therefore its methods do 
+        This class is not exposed by the Pyro and therefore its methods do
         not appear on the client proxy.
     """
     _obj: None
 
     def close(self):
-        
+
         logging.debug('Close: %s', type(self).__name__)
         try:
             if issubclass(self._obj, TT.TimeTaggerBase):
@@ -91,7 +91,7 @@ def make_class_method_proxy(attrib: inspect.Attribute):
 
 
 def make_iterator_adapter_class(class_name: str):
-    """Generates adapter class for the given Time Tagger iterator class 
+    """Generates adapter class for the given Time Tagger iterator class
         and exposes them with Pyro.
     """
     iterator_class = getattr(TT, class_name)
@@ -119,14 +119,14 @@ def make_iterator_adapter_class(class_name: str):
         if attrib.kind == 'method':
             # print('| --> ', attrib.name)
             methods[attrib.name] = make_class_method_proxy(attrib)
-    
+
     # Expose class methods with Pyro
     IteratorAdapter = Pyro5.api.expose(type(class_name, (TrackedResource,), methods))
     return IteratorAdapter
 
 
 def make_synchronized_measurements_adaptor_class():
-    """Generates adapter class for the given Time Tagger iterator class 
+    """Generates adapter class for the given Time Tagger iterator class
         and exposes them with Pyro.
     """
     Cls = TT.SynchronizedMeasurements
@@ -177,7 +177,7 @@ def make_synchronized_measurements_adaptor_class():
         if attrib.kind == 'method':
             # print(' --> ', attrib.name)
             methods[attrib.name] = make_class_method_proxy(attrib)
-    
+
     # Expose class methods with Pyro
     IteratorAdapter = Pyro5.api.expose(type(class_name, (TrackedResource,), methods))
     return IteratorAdapter
@@ -221,13 +221,13 @@ def make_timetagger_adapter_class(class_name: str):
 
 def make_iterator_constructor(iterator_name: str):
     """Generates a method that constructs the Time Tagger Iterator object and its adaptor.
-        The constructor method will be exposed via Pyro and allows creation of the measurements 
+        The constructor method will be exposed via Pyro and allows creation of the measurements
         and virtual channels via the TimeTaggerRPC interface.
     """
 
     AdapterClass = make_iterator_adapter_class(iterator_name)
 
-    def constructor(self, tagger_proxy, *args, **kwargs): 
+    def constructor(self, tagger_proxy, *args, **kwargs):
         tagger_adapter = self._pyroDaemon.proxy2object(tagger_proxy)
         pyro_obj = AdapterClass(tagger_adapter, *args, **kwargs)
         self._pyroDaemon.register(pyro_obj)
@@ -240,13 +240,13 @@ def make_iterator_constructor(iterator_name: str):
 
 def make_synchronized_measurement_constructor():
     """Generates a method that constructs the SynchronizedMeasurements object and its adaptor.
-        The constructor method will be exposed via Pyro and allows creation of the measurements 
+        The constructor method will be exposed via Pyro and allows creation of the measurements
         and virtual channels via the TimeTaggerRPC interface.
     """
 
     AdapterClass = make_synchronized_measurements_adaptor_class()
 
-    def constructor(self, tagger_proxy): 
+    def constructor(self, tagger_proxy):
         tagger_adapter = self._pyroDaemon.proxy2object(tagger_proxy)
         pyro_obj = AdapterClass(tagger_adapter)
         self._pyroDaemon.register(pyro_obj)
@@ -259,7 +259,7 @@ def make_synchronized_measurement_constructor():
 
 def make_tagger_constructor(class_name: str):
     """Generates a method that constructs the Time Tagger object and its adaptor.
-        The constructor method will be exposed via Pyro and allows creation 
+        The constructor method will be exposed via Pyro and allows creation
         of time taggers via the TimeTaggerRPC interface.
     """
     TimeTaggerAdaptor = make_timetagger_adapter_class(class_name)
@@ -389,26 +389,25 @@ def main():
         )
     )
     parser.add_argument(
-        '--host', type=str, dest='host', metavar='localhost', default='localhost', 
+        '--host', type=str, dest='host', metavar='localhost', default='localhost',
         help='Hostname or IP on which the server will listen for connections.'
     )
     parser.add_argument(
-        '--port', type=int, dest='port', default=23000, metavar='23000', 
+        '--port', type=int, dest='port', default=23000, metavar='23000',
         help='Server port.'
     )
     parser.add_argument(
-        '--use_ns', dest='use_ns', action='store_true', 
+        '--use_ns', dest='use_ns', action='store_true',
         help='Use Pyro5 nameserver.'
     )
     parser.add_argument(
-        '--start_ns', dest='start_ns', action='store_true', 
+        '--start_ns', dest='start_ns', action='store_true',
         help='Start Pyro5 nameserver in a subprocess.'
     )
-    
+
     args = parser.parse_args()
 
     start_server(**vars(args))
-
 
 
 if __name__ == "__main__":
