@@ -4,9 +4,9 @@ build-backend = "flit_core.buildapi"
 
 [tool.flit.metadata]
 module = "TimeTaggerRPC"
-author = "Igor Shavrin"
+author = "Igor Shavrin, Swabian Instruments GmbH"
 author-email = "igor@swabianinstruments.com"
-home-page = "https://github.com/igor-shavrin/TimeTaggerRPC"
+home-page = "https://github.com/swabianinstruments/TimeTaggerRPC"
 description-file = "README.md"
 requires = [
     "Pyro5",
@@ -29,7 +29,7 @@ classifiers=[
 ]
 
 [tool.flit.metadata.urls]
-Documentation = "https://www.swabianinstruments.com/static/documentation/TimeTagger/index.html"
+Documentation = "https://timetaggerrpc.readthedocs.io/"
 Hardware = "https://www.swabianinstruments.com/time-tagger/"
 
 [tool.flit.scripts]

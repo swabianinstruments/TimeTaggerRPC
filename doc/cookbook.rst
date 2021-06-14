@@ -8,19 +8,27 @@ Serving Time Tagger to multiple clients
 
 
 This section describes how to access the same Time Tagger object from multiple processes on one PC. 
-Access from multiple PCs is done the same way except you have to configure the server for providing access over the network.
+
+In order to access the TimeTaggerRPC server from multiple PCs, you have to configure the server for providing access over the network.
+This is done by starting the server with ``--host`` parameter and specifying explicit IP address ``<SERVER_IP>`` on which the server shall listen for connections.
+
+.. code:: 
+
+    TimeTaggerRPC-server --host <SERVER_IP>
+
+On the client you can connect to the server as follows:
 
 .. code:: python
 
     # Process 1
     from TimeTaggerRPC import client
-    TT = client.createProxy()
+    TT = client.createProxy(host='<SERVER_IP>')
     tagger_proxy = TT.createTimeTagger()
     tagger_proxy.getSerial()
     '1740000JG2'
     # Get the URI of the Time Tagger object.
     print(tagger_proxy._pyroUri)
-    'PYRO:obj_b2d2c3cc61b8460d921dccededff8274@localhost:23000'
+    'PYRO:obj_b2d2c3cc61b8460d921dccededff8274@<SERVER_IP>:23000'
 
 Now you can do on another process / PC the following
 
@@ -32,10 +40,10 @@ Now you can do on another process / PC the following
 
     # Access the Time Tagger library. 
     # It is always the same server object (singleton)
-    TT = client.createProxy()  
+    TT = client.createProxy(host='<SERVER_IP>')  
 
     # Connect to the existing Time Tagger object by its URI
-    uri = 'PYRO:obj_b2d2c3cc61b8460d921dccededff8274@localhost:23000'
+    uri = 'PYRO:obj_b2d2c3cc61b8460d921dccededff8274@<SERVER_IP>:23000'
     tagger_proxy = Proxy(uri)
     tagger_proxy.getSerial()
     '1740000JG2'
@@ -44,14 +52,12 @@ Now you can do on another process / PC the following
 
 
 This demonstrates how one can use multiple clients or processes to access the same Time Tagger.
-Warning, if one of the clients does something like 
 
-.. code::
+.. warning:: 
 
-    TT.freeTimeTagger(tagger_proxy)
-
-all of the clients using this object will be interrupted because the server received 
-a command to close the TimeTagger hardware connection.
+    If any of the clients executes the following command ``TT.freeTimeTagger(tagger_proxy)``,
+    all of the clients using this object will be interrupted because the server received 
+    a command to close the TimeTagger hardware connection.
 
 Currently, there is no intention to implement access management code in the TimeTaggerRPC package. 
 If you want to develop a common access infrastructure in your lab then you can follow one of the strategies
