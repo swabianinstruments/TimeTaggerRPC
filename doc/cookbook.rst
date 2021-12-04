@@ -75,7 +75,7 @@ the client code does not operate on the Time Tagger objects but ont the the Pyro
 The proxy objects maintain the network connection to the server and identify 
 themselves with a single thread and disallow the use from multiple threads simultaneously.
 However, it is possible to transfer the proxy object ownership to another thread.
-This is done by calling special Pyro5 method `Proxy._pyroClaimOwnership()` present on each proxy object. 
+This is done by calling special Pyro5 method ``Proxy._pyroClaimOwnership()`` present on each proxy object. 
 
 Take a look at the section 
 `Proxy sharing between threads <https://pyro5.readthedocs.io/en/latest/clientcode.html#proxy-sharing-between-threads>`_
@@ -136,15 +136,15 @@ The following example shows how this works.
 Secure access using SSH port forwarding
 =======================================
 
-The Pyro5, and thus the TimeTaggerRPC, do not secure the data transfer over the network. 
+The Pyro5, and thus the TimeTaggerRPC, do not secure or encrypt their communication over the network. 
 While it is usually fine to make server accessible in your local network, 
 you are strongly discouraged to expose the server to a broad public. 
 
 If you need to provide access to outside clients in a controlled way, you have a few options:
 
-1. Setup SSH port forwarding. [Easiest]
-2. Setup access to the server over VPN. [Moderate to complex]
-3. Enable SSL in Pyro5 and implement user authentication. [Complex]
+1. Setup :abbr:`SSH (Secure Shell)` port forwarding. [Easiest]
+2. Setup access to the server over :abbr:`VPN (Virtual Private Network)`. [Moderate to complex]
+3. Enable :abbr:`SSL (Secure Sockets Layer)` in Pyro5 and implement user authentication. [Complex]
 
 This section describes how to provide secure access to the TimeTaggerRPC server using SSH port forwarding. 
 It is the easiest, and in most situations sufficient, way of adding a layer of security and access control to your TimeTaggerRPC server.
@@ -163,7 +163,7 @@ On the server computer
 
 1. Install, configure, and run the SSH server. Consult your operating system documentation on how to do this.
 
-2. Run `TimeTaggerRPC-server` on a localhost only.
+2. Run ``TimeTaggerRPC-server`` on a localhost only.
 
 .. code::
 
