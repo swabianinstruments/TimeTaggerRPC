@@ -131,3 +131,37 @@ The following example shows how this works.
         t2.join()
         TT.freeTimeTagger(tagger)
 
+
+
+Secure access using SSH port forwarding
+=======================================
+
+On the server computer:
+
+1. Install, configure, and run the SSH server. 
+
+2. Run TimeTaggerRPC-server on a localhost only.
+
+.. code::
+
+    TimeTaggerRPC-server --host=localhost --port=23000
+
+On the client computer:
+
+1. Setup SSH port forwarding so all communication to localhost:23001 will be forwarded to the remote port 23000.
+
+.. code::
+
+    # ssh -L LOCAL_PORT:DESTINATION_HOST:DESTINATION_PORT [USER@]SSH_SERVER
+    # DESTINATION_HOST is specified as seen from the SSH_SERVER
+    ssh -L 23001:localhost:23000 user@rpc-server-name
+
+2. Connect to the local port on your localhost.
+
+.. code:: python
+
+    from TimeTaggerRPC import client
+    TT = client.createProxy(host='localhost', port=23001)
+    tagger_proxy = TT.createTimeTagger()
+    tagger_proxy.getSerial()
+    '1740000JG2'
