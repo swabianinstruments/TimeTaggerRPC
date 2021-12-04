@@ -1,3 +1,3 @@
 [codespell]
-skip = *.pdf,*.svg,*.sh,*.bat,.mypy_cache
+skip = *.pdf,*.svg,*.sh,*.bat,.mypy_cache,_build
 ignore-words-list = hist,crate
