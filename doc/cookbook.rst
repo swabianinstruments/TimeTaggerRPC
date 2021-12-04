@@ -75,7 +75,7 @@ the client code does not operate on the Time Tagger objects but ont the the Pyro
 The proxy objects maintain the network connection to the server and identify 
 themselves with a single thread and disallow the use from multiple threads simultaneously.
 However, it is possible to transfer the proxy object ownership to another thread.
-This is done by calling special Pyro5 method `Proxy._pyroClaimOwnership()` present on each proxy object. 
+This is done by calling special Pyro5 method ``Proxy._pyroClaimOwnership()`` present on each proxy object. 
 
 Take a look at the section 
 `Proxy sharing between threads <https://pyro5.readthedocs.io/en/latest/clientcode.html#proxy-sharing-between-threads>`_
@@ -130,4 +130,66 @@ The following example shows how this works.
         t1.join()
         t2.join()
         TT.freeTimeTagger(tagger)
+
+
+
+Secure access using SSH port forwarding
+=======================================
+
+The Pyro5, and thus the TimeTaggerRPC, do not secure or encrypt their communication over the network. 
+While it is usually fine to make server accessible in your local network, 
+you are strongly discouraged to expose the server to a broad public. 
+
+If you need to provide access to outside clients in a controlled way, you have a few options:
+
+1. Setup :abbr:`SSH (Secure Shell)` port forwarding. [Easiest]
+2. Setup access to the server over :abbr:`VPN (Virtual Private Network)`. [Moderate to complex]
+3. Enable :abbr:`SSL (Secure Sockets Layer)` in Pyro5 and implement user authentication. [Complex]
+
+This section describes how to provide secure access to the TimeTaggerRPC server using SSH port forwarding. 
+It is the easiest, and in most situations sufficient, way of adding a layer of security and access control to your TimeTaggerRPC server.
+
+You can learn more about SSH port forwarding
+from `www.ssh.com <https://www.ssh.com/academy/ssh/tunneling/example>`_ 
+and `this post <https://linuxize.com/post/how-to-setup-ssh-tunneling/>`_.
+
+.. note::
+
+    Before you set up any external access to your organization's network, 
+    you are strongly advised to consult with your network administrator.
+
+On the server computer
+^^^^^^^^^^^^^^^^^^^^^^
+
+1. Install, configure, and run the SSH server. Consult your operating system documentation on how to do this.
+
+2. Run ``TimeTaggerRPC-server`` on a localhost only.
+
+.. code::
+
+    TimeTaggerRPC-server --host=localhost --port=23000
+
+
+On the client computer
+^^^^^^^^^^^^^^^^^^^^^^
+1. Install SSH client. On many modern operating systems it is already available.
+
+2. Setup SSH local port forwarding, so all communication to a local port will be forwarded to the remote port 23000.
+
+.. code::
+
+    # ssh -L LOCAL_PORT:DESTINATION_HOST:DESTINATION_PORT [USER@]SSH_SERVER
+    # DESTINATION_HOST is specified as seen from the SSH_SERVER
+    ssh -L 23001:localhost:23000 user@<SSH_SERVER>
+
+3. Use the local port as if the TimeTaggerRPC server is listening on this port.
+
+.. code:: python
+
+    from TimeTaggerRPC import client
+    TT = client.createProxy(host='localhost', port=23001)
+    tagger_proxy = TT.createTimeTagger()
+    print(tagger_proxy.getSerial())
+    
+    >> '1740000JG2'
 
