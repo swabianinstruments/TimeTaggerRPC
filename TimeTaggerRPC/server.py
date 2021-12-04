@@ -197,7 +197,7 @@ def make_timetagger_adapter_class(class_name: str):
         self._obj = TimeTaggerCreator(*args, **kwargs)
         pyro_track_resource(self)
 
-    # Copy docstring adn signature
+    # Copy docstring and signature
     __init__.__doc__ = inspect.getdoc(tagger_class.__init__)
     __init__.__signature__ = inspect.signature(tagger_class.__init__)
 
