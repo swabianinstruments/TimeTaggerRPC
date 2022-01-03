@@ -28,7 +28,7 @@ for i in range(5):
     hist_list.append(h)
     sm.registerMeasurement(h)
 
-for i in range(5,10):
+for i in range(5, 10):
     h = TT.Correlation(sm.getTagger(), 1, DELAYED_CH, binwidth=10, n_bins=2000)
     print(f'hist_{i}', h._pyroUri)
     hist_list.append(h)

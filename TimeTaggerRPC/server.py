@@ -1,4 +1,5 @@
 import inspect
+from functools import partialmethod
 import logging
 import enum
 import uuid
@@ -28,6 +29,7 @@ EXCLUDED_TAGGER_ATTRIBUTES = [
 
 logger = logging.getLogger('TimeTaggerRPC.server')
 
+
 class TrackedResource:
     """Implements 'close' method that clears the underlying object.
         This class is not exposed by the Pyro and therefore its methods do
@@ -38,7 +40,7 @@ class TrackedResource:
 
     def __init__(self, obj):
         self._obj = obj
-        self._id = type(self).__name__ +"_" + uuid.uuid4().hex
+        self._id = type(self).__name__ + "_" + uuid.uuid4().hex
         self._logger = logger.getChild(type(self).__name__)
         self._logger.debug('New adapter instance: %s', self)
         Pyro5.api.current_context.track_resource(self)
@@ -67,7 +69,6 @@ class Daemon(Pyro5.api.Daemon):
         """Returns the Pyro object for a given proxy."""
         objectId = pyro_proxy._pyroUri.object
         return self.objectsById.get(objectId)
-
 
 
 def make_module_function_proxy(func_name: str):
@@ -101,9 +102,9 @@ def make_class_attribute_proxy(attrib: inspect.Attribute):
         return class_method
     elif attrib.kind == 'property':
         # Wrapper that forwards the call to self._obj.<property>
-        fget = lambda self: getattr(self._obj, attrib.name)
-        fset = lambda self, value: setattr(self._obj, attrib.name, value)
-        fdel = lambda self: delattr(self._obj, attrib.name)
+        def fget(self): return getattr(self._obj, attrib.name)
+        def fset(self, value): setattr(self._obj, attrib.name, value)
+        def fdel(self): delattr(self._obj, attrib.name)
         doc = inspect.getdoc(attrib.object)
         return property(fget, fset, fdel, doc)
     else:
@@ -114,14 +115,14 @@ def make_data_object_adaptor_class(class_name):
     """Generates adaptor class for DataObject returned by Iterator.getDataObject()."""
 
     logger.debug('Constructing adaptor for "%s"', class_name)
-    assert class_name.endswith('Data'), 'Must be a DataObject object.'        
+    assert class_name.endswith('Data'), 'Must be a DataObject object.'
     TTClass = getattr(TT, class_name)
 
     def discard(self):
         """Discard server-side object explicitly"""
         self.close()
 
-    attributes = {'discard':discard}
+    attributes = {'discard': discard}
 
     # Iterate over all methods of the measurement and create proxy methods
     for attrib in inspect.classify_class_attrs(TTClass):
@@ -204,7 +205,7 @@ def make_synchronized_measurements_adaptor_class():
             self._pyroDaemon.register(self._ttb_adaptor, self._ttb_adaptor._id)
         return self._ttb_adaptor
 
-    attributes =  {
+    attributes = {
         'registerMeasurement': registerMeasurement,
         'unregisterMeasurement': unregisterMeasurement,
         'getTagger': getTagger,
@@ -326,18 +327,20 @@ def make_timetagger_library_adapter():
         tagger_adapter = self._pyroDaemon.proxy2object(tagger_proxy)
         return TT.freeTimeTagger(tagger_adapter._obj)
 
+    def enum_definitions(self): 
+        return self._enums
+
     attributes = {
-        '_enums':{},  # Class attribute
-        'enum_definitions':lambda self: self._enums,
-        'freeTimeTagger':freeTimeTagger,
+        '_enums': {},  # Class attribute
+        'enum_definitions': enum_definitions,
+        'freeTimeTagger': freeTimeTagger,
     }
 
     # Create classes
     is_class_or_function = lambda o: inspect.isclass(o) or inspect.isfunction(o)
     for name, Cls in inspect.getmembers(TT, predicate=is_class_or_function):
-        if name in EXCLUDED_LIBRARY_MEMBERS:
-            continue
-        if name.startswith('_'):
+        if name in EXCLUDED_LIBRARY_MEMBERS or name.startswith('_'):
+            logger.debug('|-> TimeTaggerRPC.%s \t=> SKIPPED', name)
             continue
         if name in attributes:
             logger.debug('|-> TimeTaggerRPC.%s \t=> ALREADY EXISTS', name)
