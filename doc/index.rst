@@ -58,7 +58,7 @@ Control Time Tagger remotely over the network.
 
    cookbook
    internals
-
+   changelog
 
 
 

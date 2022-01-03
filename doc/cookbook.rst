@@ -55,8 +55,9 @@ This demonstrates how one can use multiple clients or processes to access the sa
 
 .. warning:: 
 
-    If any of the clients executes the following command ``TT.freeTimeTagger(tagger_proxy)``,
-    all of the clients using this object will be interrupted because the server received 
+    All clients connected to the same object have full control over it.
+    For example, If any of the clients execute ``TT.freeTimeTagger(tagger_proxy)``,
+    all clients using this object will be affected because the server received 
     a command to close the TimeTagger hardware connection.
 
 Currently, there is no intention to implement access management code in the TimeTaggerRPC package. 
@@ -71,7 +72,7 @@ Multithreading and proxy objects
 
 The TimeTagger library is multithreaded and thread-safe, this means you can safely use Time Tagger objects from multiple threads.
 However it is not the same when you use TimeTaggerRPC. The distinction is that 
-the client code does not operate on the Time Tagger objects but ont the the Pyro5 proxy objects. 
+the client code does not operate on the Time Tagger objects but on the Pyro5 proxy objects. 
 The proxy objects maintain the network connection to the server and identify 
 themselves with a single thread and disallow the use from multiple threads simultaneously.
 However, it is possible to transfer the proxy object ownership to another thread.
@@ -149,9 +150,8 @@ If you need to provide access to outside clients in a controlled way, you have a
 This section describes how to provide secure access to the TimeTaggerRPC server using SSH port forwarding. 
 It is the easiest, and in most situations sufficient, way of adding a layer of security and access control to your TimeTaggerRPC server.
 
-You can learn more about SSH port forwarding
-from `www.ssh.com <https://www.ssh.com/academy/ssh/tunneling/example>`_ 
-and `this post <https://linuxize.com/post/how-to-setup-ssh-tunneling/>`_.
+You can learn more about SSH port forwarding 
+from `www.ssh.com <https://www.ssh.com/academy/ssh/tunneling/example>`_.
 
 .. note::
 

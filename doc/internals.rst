@@ -85,7 +85,7 @@ We need to create an adapter class with methods that we want to access remotely 
         # Start server and expose the TimeTaggerRPC class
         with Pyro5.api.Daemon(host='localhost', port=23000) as daemon:
             # Register class with Pyro 
-            uri = daemon.register(TimeTaggerRPC, 'TimeTagger')     
+            uri = daemon.register(TimeTaggerRPC, 'TimeTaggerRPC')     
             # Print the URI of the published object
             print(uri)
             # Start the server event loop
@@ -98,13 +98,13 @@ On the client side, we need to know the unique identifier of the exposed object 
 In |pyro5|, every object is identified by a special string (URI) that contains object identity string and the server address.
 As you can see in the code below, we do not use the Time Tagger software directly, but rather communicate to the server that has it.
 
-.. code:: python
+.. code-block:: python
 
     import Pyro5.api
 
     # Connect to the TimeTaggerRPC object on the server
     # This line is all we need to establish remote communication
-    TT = Pyro5.api.Proxy("PYRO:TimeTagger@localhost:23000")
+    TT = Pyro5.api.Proxy("PYRO:TimeTaggerRPC@localhost:23000")
 
     # Now we can call methods that will be executed on the server.
     # Lets check what Time Taggers are available at the server
@@ -149,7 +149,7 @@ and understandable by a client system.
 
 The |pyro5|, more specifically the `serpent` serializer it employs by default, 
 knows how to serialize the standard Python data types like list of strings returned by :func:`ttdoc:scanTimeTagger`. 
-However, it has no idea how to interpret the :class:`ttdoc:TimeTagger` object returned by the :func:`ttdoc.createTimeTagger`. 
+However, it has no idea how to interpret the :class:`ttdoc:TimeTagger` object returned by the :func:`ttdoc:createTimeTagger`. 
 Moreover, instead of sending the :class:`ttdoc:TimeTagger` object to the client, 
 we want to send a proxy object which allows the client talk to the :class:`ttdoc:TimeTagger` object on the server.
 

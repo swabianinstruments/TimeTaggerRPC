@@ -1,6 +1,7 @@
 import inspect
 import logging
 import enum
+import uuid
 
 import Pyro5.api
 import TimeTagger as TT
@@ -11,7 +12,7 @@ from . import helper
 EXCLUDED_LIBRARY_MEMBERS = [
     'TimeTaggerBase', 'IteratorBase', 'Iterator', 'FlimAbstract',
     'TimeTaggerVirtual', 'createTimeTaggerVirtual',
-    'CustomMeasurement', 'CustomMeasurementBase',
+    'CustomMeasurement', 'CustomMeasurementBase', 'CustomMeasurementBase_stop_all_custom_measurements',
     'TimeTagStream', 'FileReader', 'TimeTagStreamBuffer',
     'setLogger', 'setCustomBitFileName', 'hasTimeTaggerVirtualLicense',
     'setFrontend', 'setLanguageInfo', 'flashLicense',
@@ -25,10 +26,7 @@ EXCLUDED_TAGGER_ATTRIBUTES = [
     'factoryAccess'
 ]
 
-
-def pyro_track_resource(resource):
-    Pyro5.api.current_context.track_resource(resource)
-    logging.debug('Tracking resource: %s', type(resource).__name__)
+logger = logging.getLogger('TimeTaggerRPC.server')
 
 
 class TrackedResource:
@@ -36,18 +34,31 @@ class TrackedResource:
         This class is not exposed by the Pyro and therefore its methods do
         not appear on the client proxy.
     """
-    _obj: None
+    _obj: object
+    _id: str
+
+    def __init__(self, obj):
+        self._obj = obj
+        self._id = type(self).__name__ + "_" + uuid.uuid4().hex
+        self._logger = logger.getChild(type(self).__name__)
+        self._logger.debug('New adapter instance: %s', self)
+        Pyro5.api.current_context.track_resource(self)
+
+    def __repr__(self) -> str:
+        return '<' + self._id + '>'
 
     def close(self):
-
-        logging.debug('Close: %s', type(self).__name__)
+        self._logger.debug('Closed: %s', self)
         try:
-            if issubclass(self._obj, TT.TimeTaggerBase):
+            if isinstance(self._obj, TT.TimeTaggerBase):
                 TT.freeTimeTagger(self._obj)
-        except AttributeError:
-            pass
+        except AttributeError as e:
+            self._logger.debug(e)
         finally:
             self._obj = None
+        Pyro5.api.current_context.untrack_resource(self)
+        if hasattr(self, '_pyroDaemon'):
+            self._pyroDaemon.unregister(self)
 
 
 class Daemon(Pyro5.api.Daemon):
@@ -74,55 +85,96 @@ def make_module_function_proxy(func_name: str):
     return func_proxy
 
 
-def make_class_method_proxy(attrib: inspect.Attribute):
-    """Generates a proxy method for the wrapped method
+def make_class_attribute_proxy(attrib: inspect.Attribute):
+    """Generates a proxy method for the wrapped method or property
          Copies name, signature and doc-string.
     """
-    assert attrib.kind == 'method', 'Must be a class method'
 
-    def method_proxy(self, *args, **kwargs):
-        method_handle = getattr(self._obj, attrib.name)
-        return method_handle(*args, **kwargs)
+    if attrib.kind == 'method':
+        # Wrapper that forwards call to self._obj.<attrib.name>(*ars, **kwargs)
+        def class_method(self, *args, **kwargs):
+            method = getattr(self._obj, attrib.name)
+            return method(*args, **kwargs)
+        class_method.__doc__ = inspect.getdoc(attrib.object)
+        class_method.__signature__ = inspect.signature(attrib.object)
+        class_method.__name__ = attrib.name
+        return class_method
+    elif attrib.kind == 'property':
+        # Wrapper that forwards the call to self._obj.<property>
+        def fget(self): return getattr(self._obj, attrib.name)
+        def fset(self, value): setattr(self._obj, attrib.name, value)
+        def fdel(self): delattr(self._obj, attrib.name)
+        doc = inspect.getdoc(attrib.object)
+        return property(fget, fset, fdel, doc)
+    else:
+        raise ValueError('Unknown attribute kind %s', attrib.kind)
 
-    method_proxy.__doc__ = inspect.getdoc(attrib.object)
-    method_proxy.__signature__ = inspect.signature(attrib.object)
-    method_proxy.__name__ = attrib.name
-    return method_proxy
+
+def make_data_object_adaptor_class(class_name):
+    """Generates adaptor class for DataObject returned by Iterator.getDataObject()."""
+
+    logger.debug('Constructing adaptor for "%s"', class_name)
+    assert class_name.endswith('Data'), 'Must be a DataObject object.'
+    TTClass = getattr(TT, class_name)
+
+    def discard(self):
+        """Discard server-side object explicitly"""
+        self.close()
+
+    attributes = {'discard': discard}
+
+    # Iterate over all methods of the measurement and create proxy methods
+    for attrib in inspect.classify_class_attrs(TTClass):
+        if attrib.name.startswith('_'):
+            continue
+        if attrib.name.startswith('this'):
+            continue
+        logger.debug('|-> (%s) %s.%s', attrib.kind, class_name, attrib.name)
+        attributes[attrib.name] = make_class_attribute_proxy(attrib)
+
+    # Expose class methods with Pyro
+    DataObjectAdapter = type(class_name, (TrackedResource,), attributes)
+    return Pyro5.api.expose(DataObjectAdapter)
 
 
 def make_iterator_adapter_class(class_name: str):
     """Generates adapter class for the given Time Tagger iterator class
         and exposes them with Pyro.
     """
+    logger.debug('Constructing adaptor for "%s"', class_name)
     iterator_class = getattr(TT, class_name)
     assert issubclass(iterator_class, TT.IteratorBase), 'Must be a TT.Iterator object.'
 
-    # Custom init method
-    def __init__(self, tagger_adapter, *args, **kwargs):
-        TTClass = getattr(TT, type(self).__name__)
-        self._obj = TTClass(tagger_adapter._obj, *args, **kwargs)
-        pyro_track_resource(self)
+    attributes = {}
 
-    # Copy docstring and signature
-    __init__.__doc__ = inspect.getdoc(iterator_class.__init__)
-    __init__.__signature__ = inspect.signature(iterator_class.__init__)
-
-    methods = {'__init__': __init__}
+    if hasattr(iterator_class, 'getDataObject'):
+        def getDataObject(self, *args, **kwargs):
+            data_obj = self._obj.getDataObject(*args, **kwargs)
+            pyro_obj = self._DataObjectAdapter(data_obj)
+            self._pyroDaemon.register(pyro_obj, pyro_obj._id)
+            return pyro_obj
+        getDataObject.__doc__ = inspect.getdoc(iterator_class.getDataObject)
+        getDataObject.__signature__ = inspect.signature(iterator_class.getDataObject)
+        attributes['_DataObjectAdapter'] = make_data_object_adaptor_class(class_name+'Data')
+        attributes['getDataObject'] = getDataObject
 
     # Iterate over all methods of the measurement and create proxy methods
-    # print('iterator', class_name)
     for attrib in inspect.classify_class_attrs(iterator_class):
+        if attrib.name in attributes:
+            logger.debug('|-> (%s) %s.%s \t=> ALREADY EXISTS', attrib.kind, class_name, attrib.name)
+            continue
         if attrib.name in EXCLUDED_ITERATOR_ATTRIBUTES:
+            logger.debug('|-> (%s) %s.%s \t=> SKIPPED', attrib.kind, class_name, attrib.name)
             continue
         if attrib.name.startswith('_'):
             continue
         if attrib.kind == 'method':
-            # print('| --> ', attrib.name)
-            methods[attrib.name] = make_class_method_proxy(attrib)
+            logger.debug('|-> (%s) %s.%s', attrib.kind, class_name, attrib.name)
+            attributes[attrib.name] = make_class_attribute_proxy(attrib)
 
     # Expose class methods with Pyro
-    IteratorAdapter = Pyro5.api.expose(type(class_name, (TrackedResource,), methods))
-    return IteratorAdapter
+    IteratorAdapter = type(class_name, (TrackedResource,), attributes)
+    return Pyro5.api.expose(IteratorAdapter)
 
 
 def make_synchronized_measurements_adaptor_class():
@@ -131,56 +183,50 @@ def make_synchronized_measurements_adaptor_class():
     """
     Cls = TT.SynchronizedMeasurements
     class_name = Cls.__name__
-
-    # Custom methods method
-    def __init__(self, tagger_adaptor):
-        self._obj = TT.SynchronizedMeasurements(tagger_adaptor._obj)
-        pyro_track_resource(self)
+    logger.debug('Constructing adaptor for "%s"', class_name)
+    TimeTaggerBaseAdaptor = make_timetagger_adapter_class('TimeTaggerBase')
 
     def registerMeasurement(self, measurement_proxy):
         iterator_adaptor = self._pyroDaemon.proxy2object(measurement_proxy)
+        self._logger.debug('registerMeasurement(%s)', type(iterator_adaptor).__name__)
         return self._obj.registerMeasurement(iterator_adaptor._obj)
 
     def unregisterMeasurement(self, measurement_proxy):
         iterator_adaptor = self._pyroDaemon.proxy2object(measurement_proxy)
+        self._logger.debug('unregisterMeasurement(%s)', type(iterator_adaptor).__name__)
         return self._obj.unregisterMeasurement(iterator_adaptor._obj)
 
-    # Possible but does not work yet
-    # def getTagger(self):
-    #     tagger = self._obj.getTagger()
-    #     # Requires separate adaptor generator
-    #     # TimeTaggerAdaptor = make_timetagger_adapter_class(type(tagger).__name__)
-    #     tagger_adaptor = TimeTaggerAdaptor(tagger)
-    #     self._pyroDaemon.register(tagger_adaptor)
-    #     return tagger_adaptor
+    def getTagger(self):
+        # Construct Time Tagger adaptor instance only once.
+        if not hasattr(self, '_ttb_adaptor'):
+            tagger = self._obj.getTagger()
+            self._ttb_adaptor = TimeTaggerBaseAdaptor(tagger)
+            self._pyroDaemon.register(self._ttb_adaptor, self._ttb_adaptor._id)
+        return self._ttb_adaptor
 
-    # Copy docstring and signature
-    __init__.__doc__ = inspect.getdoc(Cls.__init__)
-    __init__.__signature__ = inspect.signature(Cls.__init__)
-
-    methods = {
-        '__init__': __init__,
+    attributes = {
         'registerMeasurement': registerMeasurement,
         'unregisterMeasurement': unregisterMeasurement,
-        # 'getTagger': getTagger,
-        }
+        'getTagger': getTagger,
+    }
 
-    # Iterate over all methods of the measurement and create proxy methods
-    # print('object', class_name)
+    # Iterate over all methods of the object and create proxy methods
     for attrib in inspect.classify_class_attrs(Cls):
-        if attrib.name in methods:
-            continue
-        if attrib.name in EXCLUDED_ITERATOR_ATTRIBUTES + ['getTagger']:
+        if attrib.name in attributes:
+            logger.debug('|-> (%s) %s.%s \t=> ALREADY EXISTS', attrib.kind, class_name, attrib.name)
             continue
         if attrib.name.startswith('_'):
             continue
+        if attrib.name in EXCLUDED_ITERATOR_ATTRIBUTES:
+            logger.debug('|-> (%s) %s.%s \t=> SKIPPED', attrib.kind, class_name, attrib.name)
+            continue
         if attrib.kind == 'method':
-            # print(' --> ', attrib.name)
-            methods[attrib.name] = make_class_method_proxy(attrib)
+            logger.debug('|-> (%s) %s.%s', attrib.kind, class_name, attrib.name)
+            attributes[attrib.name] = make_class_attribute_proxy(attrib)
 
     # Expose class methods with Pyro
-    IteratorAdapter = Pyro5.api.expose(type(class_name, (TrackedResource,), methods))
-    return IteratorAdapter
+    Adaptor = type(class_name, (TrackedResource,), attributes)
+    return Pyro5.api.expose(Adaptor)
 
 
 def make_timetagger_adapter_class(class_name: str):
@@ -188,35 +234,26 @@ def make_timetagger_adapter_class(class_name: str):
         The Adapter exposes all public methods except those from exclusion list.
     """
 
+    logger.debug('Constructing adaptor for "%s"', class_name)
     tagger_class = getattr(TT, class_name)
     assert issubclass(tagger_class, TT.TimeTaggerBase), 'Must be a TT.TimeTaggerBase object.'
 
-    # Custom init method
-    def __init__(self, *args, **kwargs):
-        TimeTaggerCreator = getattr(TT, 'create'+class_name)
-        self._obj = TimeTaggerCreator(*args, **kwargs)
-        pyro_track_resource(self)
-
-    # Copy docstring and signature
-    __init__.__doc__ = inspect.getdoc(tagger_class.__init__)
-    __init__.__signature__ = inspect.signature(tagger_class.__init__)
-
-    methods = {'__init__': __init__}
+    attributes = {}
 
     # Iterate over all methods of the measurement and create proxy methods
-    # print('tagger', class_name)
     for attrib in inspect.classify_class_attrs(tagger_class):
         if attrib.name in EXCLUDED_TAGGER_ATTRIBUTES:
+            logger.debug('|-> (%s) %s.%s \t=> SKIPPED', attrib.kind, class_name, attrib.name)
             continue
         if attrib.name.startswith('_'):
             continue
         if attrib.kind == 'method':
-            # print(' --> ', attrib.name)
-            methods[attrib.name] = make_class_method_proxy(attrib)
+            logger.debug('|-> (%s) %s.%s', attrib.kind, class_name, attrib.name)
+            attributes[attrib.name] = make_class_attribute_proxy(attrib)
 
     # Expose class methods with Pyro
-    TaggerAdapterClass = Pyro5.api.expose(type(class_name, (TrackedResource,), methods))
-    return TaggerAdapterClass
+    TaggerAdapterClass = type(class_name, (TrackedResource,), attributes)
+    return Pyro5.api.expose(TaggerAdapterClass)
 
 
 def make_iterator_constructor(iterator_name: str):
@@ -226,15 +263,17 @@ def make_iterator_constructor(iterator_name: str):
     """
 
     AdapterClass = make_iterator_adapter_class(iterator_name)
+    Iterator = getattr(TT, iterator_name)
 
     def constructor(self, tagger_proxy, *args, **kwargs):
         tagger_adapter = self._pyroDaemon.proxy2object(tagger_proxy)
-        pyro_obj = AdapterClass(tagger_adapter, *args, **kwargs)
-        self._pyroDaemon.register(pyro_obj)
+        iter = Iterator(tagger_adapter._obj, *args, **kwargs)
+        pyro_obj = AdapterClass(iter)
+        self._pyroDaemon.register(pyro_obj, pyro_obj._id)
         return pyro_obj
-    constructor.__name__ = AdapterClass.__name__
-    constructor.__doc__ = inspect.getdoc(AdapterClass)
-    constructor.__signature__ = inspect.signature(AdapterClass.__init__)
+    constructor.__name__ = iterator_name
+    constructor.__doc__ = inspect.getdoc(Iterator.__init__)
+    constructor.__signature__ = inspect.signature(Iterator.__init__)
     return constructor
 
 
@@ -248,8 +287,9 @@ def make_synchronized_measurement_constructor():
 
     def constructor(self, tagger_proxy):
         tagger_adapter = self._pyroDaemon.proxy2object(tagger_proxy)
-        pyro_obj = AdapterClass(tagger_adapter)
-        self._pyroDaemon.register(pyro_obj)
+        tt_obj = TT.SynchronizedMeasurements(tagger_adapter._obj)
+        pyro_obj = AdapterClass(tt_obj)
+        self._pyroDaemon.register(pyro_obj, pyro_obj._id)
         return pyro_obj
     constructor.__name__ = AdapterClass.__name__
     constructor.__doc__ = inspect.getdoc(AdapterClass)
@@ -263,14 +303,16 @@ def make_tagger_constructor(class_name: str):
         of time taggers via the TimeTaggerRPC interface.
     """
     TimeTaggerAdaptor = make_timetagger_adapter_class(class_name)
+    TimeTaggerCreator = getattr(TT, 'create'+class_name)
 
     def constructor(self, *args, **kwargs):
-        pyro_obj = TimeTaggerAdaptor(*args, **kwargs)
-        self._pyroDaemon.register(pyro_obj)
+        tagger = TimeTaggerCreator(*args, **kwargs)
+        pyro_obj = TimeTaggerAdaptor(tagger)
+        self._pyroDaemon.register(pyro_obj, pyro_obj._id)
         return pyro_obj
-    constructor.__name__ = 'create'+TimeTaggerAdaptor.__name__
-    constructor.__doc__ = inspect.getdoc(TimeTaggerAdaptor.__init__)
-    constructor.__signature__ = inspect.signature(TimeTaggerAdaptor.__init__)
+    constructor.__name__ = TimeTaggerCreator.__name__
+    constructor.__doc__ = inspect.getdoc(TimeTaggerCreator)
+    constructor.__signature__ = inspect.signature(TimeTaggerCreator)
     return constructor
 
 
@@ -278,38 +320,48 @@ def make_timetagger_library_adapter():
     """Generates an adapter class for the Time Tagger library and exposes it with Pyro.
         This class is an entry point for remote connections.
     """
+    logger.debug('Generating TimeTagger library adaptor class.')
 
-    # Manually defined functions and helpers
     def freeTimeTagger(self, tagger_proxy):
         tagger_adapter = self._pyroDaemon.proxy2object(tagger_proxy)
         return TT.freeTimeTagger(tagger_adapter._obj)
 
-    TimeTaggerRPC_attributes = {
-        "freeTimeTagger": freeTimeTagger,
+    def enum_definitions(self):
+        return self._enums
+
+    attributes = {
+        '_enums': {},  # Class attribute
+        'enum_definitions': enum_definitions,
+        'freeTimeTagger': freeTimeTagger,
     }
 
-    TimeTagger_enums = dict()
+    def is_class_or_function(o):
+        return inspect.isclass(o) or inspect.isfunction(o)
 
     # Create classes
-    for name, Cls in inspect.getmembers(TT, predicate=inspect.isclass):
-        if name in EXCLUDED_LIBRARY_MEMBERS:
+    for name, Cls in inspect.getmembers(TT, predicate=is_class_or_function):
+        if name in EXCLUDED_LIBRARY_MEMBERS or name.startswith('_'):
+            logger.debug('|-> TimeTaggerRPC.%s \t=> SKIPPED', name)
             continue
-        if name.startswith('_'):
+        if name in attributes:
+            logger.debug('|-> TimeTaggerRPC.%s \t=> ALREADY EXISTS', name)
             continue
-        if issubclass(Cls, TT.IteratorBase):
-            TimeTaggerRPC_attributes[name] = make_iterator_constructor(name)
+        if inspect.isfunction(Cls):
+            attributes[name] = make_module_function_proxy(name)
+        elif issubclass(Cls, TT.IteratorBase):
+            attributes[name] = make_iterator_constructor(name)
         elif issubclass(Cls, TT.TimeTaggerBase):
-            TimeTaggerRPC_attributes['create'+name] = make_tagger_constructor(name)
+            attributes['create'+name] = make_tagger_constructor(name)
         elif issubclass(Cls, TT.SynchronizedMeasurements):
-            TimeTaggerRPC_attributes[name] = make_synchronized_measurement_constructor()
+            attributes[name] = make_synchronized_measurement_constructor()
         elif issubclass(Cls, enum.Enum):
             enum_type = inspect.getmro(Cls)[1]
             enum_values = tuple((e.name, e.value) for e in Cls)
             if len(enum_values) > 0:
-                TimeTagger_enums[name] = (enum_type.__name__, enum_values)
+                attributes['_enums'][name] = (enum_type.__name__, enum_values)
         elif name in ('Resolution', 'CoincidenceTimestamp', 'ChannelEdge'):
             # This case handles older TimeTagger versions that do not use "enum" package.
-            if name in TimeTagger_enums:
+            if name in attributes['_enums']:
                 continue
             enum_type = 'IntEnum'  # Use IntEnum for all enums
             enum_values = list()
@@ -317,35 +369,27 @@ def make_timetagger_library_adapter():
                 if not atr.name.startswith('_'):
                     enum_values.append((atr.name, atr.object))
             if len(enum_values) > 0:
-                TimeTagger_enums[name] = (enum_type, tuple(enum_values))
-
-    # Enum definitions getter
-    TimeTaggerRPC_attributes['enum_definitions'] = lambda *args: TimeTagger_enums
-
-    # Create module level functions
-    for name, func in inspect.getmembers(TT, predicate=inspect.isfunction):
-        if name in TimeTaggerRPC_attributes:
-            continue
-        if name in EXCLUDED_LIBRARY_MEMBERS:
-            continue
-        if name.startswith('_'):
-            continue
-        # print('function', name)
-        TimeTaggerRPC_attributes[name] = make_module_function_proxy(name)
+                attributes['_enums'][name] = (enum_type, tuple(enum_values))
 
     # Construct and expose the final RPC adapter class
-    TimeTaggerRPC = Pyro5.api.expose(type("TimeTaggerRPC", (), TimeTaggerRPC_attributes))
-    return TimeTaggerRPC
+    TimeTaggerRPC = type('TimeTaggerRPC', (object,), attributes)
+    logger.debug('Generating TimeTagger library adaptor completed.')
+    return Pyro5.api.expose(TimeTaggerRPC)
 
 
-def start_server(host='localhost', port=23000, use_ns=False, start_ns=False):
+def start_server(host='localhost', port=23000, use_ns=False, start_ns=False, verbose=False):
     """This method starts the Pyro server eventloop and processes client requests."""
+
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
 
     # Start Pyro nameserver in a subprocess
     if start_ns:
         import subprocess
+        import sys
+        logger.info('Starting Pyro nameserver')
         ns_proc = subprocess.Popen(
-            ['python', '-m', 'Pyro5.nameserver', '-n', host])
+            [sys.executable, '-m', 'Pyro5.nameserver', '-n', host])
 
     try:
         with Daemon(host=host, port=port) as daemon:
@@ -359,12 +403,12 @@ def start_server(host='localhost', port=23000, use_ns=False, start_ns=False):
             # register the Pyro class
             TimeTaggerRPC = make_timetagger_library_adapter()
             rpc_obj = TimeTaggerRPC()
-            uri = daemon.register(rpc_obj, 'TimeTagger')
+            uri = daemon.register(rpc_obj, 'TimeTaggerRPC')
             print('Server URI=', uri)
             if use_ns:
                 ns = Pyro5.api.locate_ns()         # find the name server
                 # register the object with a name in the name server
-                ns.register("TimeTagger", uri)
+                ns.register("TimeTaggerRPC", uri)
             # start the event loop of the server to wait for calls
             daemon.requestLoop()
     except KeyboardInterrupt:
@@ -403,6 +447,10 @@ def main():
     parser.add_argument(
         '--start_ns', dest='start_ns', action='store_true',
         help='Start Pyro5 nameserver in a subprocess.'
+    )
+    parser.add_argument(
+        '-v,--verbose', dest='verbose', action='store_true',
+        help='Enable log messages at DEBUG level.'
     )
 
     args = parser.parse_args()
