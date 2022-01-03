@@ -1,5 +1,4 @@
 import inspect
-from functools import partialmethod
 import logging
 import enum
 import uuid
@@ -327,7 +326,7 @@ def make_timetagger_library_adapter():
         tagger_adapter = self._pyroDaemon.proxy2object(tagger_proxy)
         return TT.freeTimeTagger(tagger_adapter._obj)
 
-    def enum_definitions(self): 
+    def enum_definitions(self):
         return self._enums
 
     attributes = {
@@ -336,8 +335,10 @@ def make_timetagger_library_adapter():
         'freeTimeTagger': freeTimeTagger,
     }
 
+    def is_class_or_function(o): 
+        return inspect.isclass(o) or inspect.isfunction(o)
+
     # Create classes
-    is_class_or_function = lambda o: inspect.isclass(o) or inspect.isfunction(o)
     for name, Cls in inspect.getmembers(TT, predicate=is_class_or_function):
         if name in EXCLUDED_LIBRARY_MEMBERS or name.startswith('_'):
             logger.debug('|-> TimeTaggerRPC.%s \t=> SKIPPED', name)
