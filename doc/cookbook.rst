@@ -150,9 +150,8 @@ If you need to provide access to outside clients in a controlled way, you have a
 This section describes how to provide secure access to the TimeTaggerRPC server using SSH port forwarding. 
 It is the easiest, and in most situations sufficient, way of adding a layer of security and access control to your TimeTaggerRPC server.
 
-You can learn more about SSH port forwarding
-from `www.ssh.com <https://www.ssh.com/academy/ssh/tunneling/example>`_ 
-and `this post <https://linuxize.com/post/how-to-setup-ssh-tunneling/>`_.
+You can learn more about SSH port forwarding 
+from `www.ssh.com <https://www.ssh.com/academy/ssh/tunneling/example>`_.
 
 .. note::
 
