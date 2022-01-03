@@ -16,13 +16,13 @@ class TTProxy(Pyro5.api.Proxy):
         self._pyroRelease()
 
 
-def createProxy(host: str = 'localhost', port: int = 23000, _objectId: str = 'TimeTagger'):
+def createProxy(host: str = 'localhost', port: int = 23000, _objectId: str = 'TimeTaggerRPC'):
     """Returns Proxy object to the remote Time Tagger RPC
 
     Args:
         host (str, optional): Server hostname or IP address. Defaults to 'localhost'.
         port (int, optional): Server port. Defaults to 23000.
-        _objectId (str, optional): Pyro Object ID. Defaults to 'TimeTagger'.
+        _objectId (str, optional): Pyro Object ID. Defaults to 'TimeTaggerRPC'.
 
     Returns:
         Pyro5.api.Proxy: Proxy object to the Time Tagger Library.
