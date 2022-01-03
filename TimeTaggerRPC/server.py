@@ -335,7 +335,7 @@ def make_timetagger_library_adapter():
         'freeTimeTagger': freeTimeTagger,
     }
 
-    def is_class_or_function(o): 
+    def is_class_or_function(o):
         return inspect.isclass(o) or inspect.isfunction(o)
 
     # Create classes
