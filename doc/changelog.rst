@@ -9,4 +9,4 @@ v 0.0.5 - 2022-01-03
 * Improved logging.
 * Renamed root Pyro object `TimeTagger` to `TimeTaggerRPC`.
 * Typo corrections in the documentation.
-* Added this changelog
+* Added this changelog.
