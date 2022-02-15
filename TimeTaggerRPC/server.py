@@ -29,6 +29,14 @@ EXCLUDED_TAGGER_ATTRIBUTES = [
 logger = logging.getLogger('TimeTaggerRPC.server')
 
 
+class Daemon(Pyro5.api.Daemon):
+    """Customized Pyro5 Daemon."""
+
+    def proxy2object(self, pyro_proxy):
+        """Returns the Pyro object for a given proxy."""
+        objectId = pyro_proxy._pyroUri.object
+        return self.objectsById.get(objectId)
+
 class TrackedResource:
     """Implements 'close' method that clears the underlying object.
         This class is not exposed by the Pyro and therefore its methods do
@@ -36,6 +44,7 @@ class TrackedResource:
     """
     _obj: object
     _id: str
+    _pyroDaemon: Daemon
 
     def __init__(self, obj):
         self._obj = obj
@@ -56,18 +65,13 @@ class TrackedResource:
             self._logger.debug(e)
         finally:
             self._obj = None
-        Pyro5.api.current_context.untrack_resource(self)
+        # Unregister the Pyro object.
+        # Tracking will be removed automatically.
         if hasattr(self, '_pyroDaemon'):
             self._pyroDaemon.unregister(self)
-
-
-class Daemon(Pyro5.api.Daemon):
-    """Customized Pyro5 Daemon."""
-
-    def proxy2object(self, pyro_proxy):
-        """Returns the Pyro object for a given proxy."""
-        objectId = pyro_proxy._pyroUri.object
-        return self.objectsById.get(objectId)
+            self._logger.debug('Unregistered: %s', self)
+        else:
+            self._logger.warning('Failed to unregister: %s', self)
 
 
 def make_module_function_proxy(func_name: str):

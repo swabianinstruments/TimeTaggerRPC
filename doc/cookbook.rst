@@ -9,8 +9,8 @@ Serving Time Tagger to multiple clients
 
 This section describes how to access the same Time Tagger object from multiple processes on one PC. 
 
-In order to access the TimeTaggerRPC server from multiple PCs, you have to configure the server for providing access over the network.
-This is done by starting the server with ``--host`` parameter and specifying explicit IP address ``<SERVER_IP>`` on which the server shall listen for connections.
+For accessing the TimeTaggerRPC server from a different PC, you have to instruct the server to access over the network.
+You have to start the server with ``--host`` parameter and specifying explicit IP address ``<SERVER_IP>`` on which the server shall listen for connections.
 
 .. code:: 
 
@@ -18,7 +18,7 @@ This is done by starting the server with ``--host`` parameter and specifying exp
 
 On the client you can connect to the server as follows:
 
-.. code:: python
+.. code-block:: python
 
     # Process 1
     from TimeTaggerRPC import client
@@ -32,7 +32,7 @@ On the client you can connect to the server as follows:
 
 Now you can do on another process / PC the following
 
-.. code:: python
+.. code-block:: python
 
     # Process 2
     from TimeTaggerRPC import client
@@ -58,7 +58,7 @@ This demonstrates how one can use multiple clients or processes to access the sa
     All clients connected to the same object have full control over it.
     For example, If any of the clients execute ``TT.freeTimeTagger(tagger_proxy)``,
     all clients using this object will be affected because the server received 
-    a command to close the TimeTagger hardware connection.
+    a command to close the Time Tagger hardware connection.
 
 Currently, there is no intention to implement access management code in the TimeTaggerRPC package. 
 If you want to develop a common access infrastructure in your lab then you can follow one of the strategies
@@ -70,7 +70,7 @@ If you want to develop a common access infrastructure in your lab then you can f
 Multithreading and proxy objects
 =================================
 
-The TimeTagger library is multithreaded and thread-safe, this means you can safely use Time Tagger objects from multiple threads.
+The Time Tagger library is multithreaded and thread-safe, this means you can safely use Time Tagger objects from multiple threads.
 However it is not the same when you use TimeTaggerRPC. The distinction is that 
 the client code does not operate on the Time Tagger objects but on the Pyro5 proxy objects. 
 The proxy objects maintain the network connection to the server and identify 
@@ -85,7 +85,7 @@ https://github.com/irmen/Pyro5/tree/master/examples/threadproxysharing.
 
 The following example shows how this works.
 
-.. code-block::
+.. code-block:: python
 
     import time
     import threading
@@ -126,7 +126,7 @@ The following example shows how this works.
 
     except KeyboardInterrupt:
         stop_evt.set()
-        print('Exiting..')
+        print('Exiting...')
     finally:
         t1.join()
         t2.join()
@@ -172,7 +172,7 @@ On the server computer
 
 On the client computer
 ^^^^^^^^^^^^^^^^^^^^^^
-1. Install SSH client. On many modern operating systems it is already available.
+1. Install SSH client if not already available on your operating system.
 
 2. Setup SSH local port forwarding, so all communication to a local port will be forwarded to the remote port 23000.
 

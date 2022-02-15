@@ -28,7 +28,7 @@ for i in range(5):
     hist_list.append(h)
     sm.registerMeasurement(h)
 
-for i in range(5, 10):
+for i in range(5, 40):
     h = TT.Correlation(sm.getTagger(), 1, DELAYED_CH, binwidth=10, n_bins=2000)
     print(f'hist_{i}', h._pyroUri)
     hist_list.append(h)
@@ -37,7 +37,7 @@ crate = TT.Countrate(tagger, [1, 2])
 print('crate', crate._pyroUri)
 crate.clear()
 
-sm.startFor(int(2e12), clear=True)
+sm.startFor(int(1e12), clear=True)
 
 while sm.isRunning():
     time.sleep(0.05)
@@ -48,8 +48,8 @@ print('Countrates', crate.getData())
 crate._pyroRelease()
 del crate
 
-# TT.freeTimeTagger(tagger)
+TT.freeTimeTagger(tagger)
 # del tagger
 
 print('Sleeping ...')
-time.sleep(5)
+time.sleep(1)

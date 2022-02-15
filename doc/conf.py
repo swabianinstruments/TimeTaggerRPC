@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Time Tagger RPC'
-copyright = '2021 Swabian Instruments GmbH'
+copyright = '2022 Swabian Instruments GmbH'
 author = 'Igor Shavrin <igor@swabianinstruments.com>'
 
 

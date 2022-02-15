@@ -9,7 +9,7 @@ Time Tagger RPC implementation using [Pyro5](https://pypi.org/project/Pyro5/).
 ### Alpha version !
 This project is in the alpha stage of the development. This means that the code 
 successfully passed basic testing and is operational. 
-However, some things might be broken and the API may change in the future versions.
+However, some things might be broken, and the API may change in the future versions.
 
 
 ### Install
