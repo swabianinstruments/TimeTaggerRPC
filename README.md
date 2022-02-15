@@ -33,8 +33,8 @@ optional arguments:
   -h, --help        show this help message and exit
   --host localhost  Hostname or IP on which the server will listen for connections.
   --port 23000      Server port.
-  --use_ns          Use Pyro5 nameserver.
-  --start_ns        Start Pyro5 nameserver in a subprocess.
+  --use_ns          Use Pyro5 name server.
+  --start_ns        Start Pyro5 name server in a subprocess.
 ```
 
 
