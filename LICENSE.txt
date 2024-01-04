@@ -1,4 +1,4 @@
-Copyright 2021 Swabian Instruments GmbH
+Copyright 2024 Swabian Instruments GmbH
 Author: Dr. Igor Shavrin
 
 Redistribution and use in source and binary forms, with or without modification, 

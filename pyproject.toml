@@ -12,7 +12,7 @@ requires = [
     "Pyro5",
     "numpy"
 ]
-requires-python = ">=3.7,<4"
+requires-python = ">=3.6,<4"
 license = "BSD 3-Clause"
 classifiers=[
     "License :: OSI Approved :: BSD License",
